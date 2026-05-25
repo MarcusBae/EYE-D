@@ -49,11 +49,47 @@ class ReIDExtractor:
         
         self._initialize_extractor()
 
+    def _try_load_onnx_only(self):
+        """torchreid 없이 ONNX Runtime만으로 Re-ID 추론 초기화."""
+        import os
+        try:
+            import onnxruntime as ort
+            onnx_path = f"{self.model_name}.onnx"
+            if os.path.exists(onnx_path):
+                providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+                self.ort_session = ort.InferenceSession(onnx_path, providers=providers)
+                self.is_loaded = True
+                logger.info(f"Loaded hardware-accelerated ONNX model from '{onnx_path}' (torchreid-free mode)")
+            else:
+                logger.error(f"ONNX file not found at '{onnx_path}'. cwd={os.getcwd()}")
+                self.is_loaded = False
+        except ImportError:
+            logger.error("onnxruntime not installed. Run: pip install onnxruntime")
+            self.is_loaded = False
+        except Exception as e:
+            logger.error(f"ONNX-only mode init failed: {e}")
+            self.is_loaded = False
+
+    def _preprocess_for_onnx(self, roi):
+        """torchreid 없이 OSNet ONNX 추론을 위한 표준 전처리 (ImageNet 정규화)."""
+        img = cv2.resize(roi, (128, 256))  # W=128, H=256
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = img.astype(np.float32) / 255.0
+        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        img = (img - mean) / std
+        img = img.transpose(2, 0, 1)  # HWC → CHW
+        return np.expand_dims(img, axis=0).astype(np.float32)  # [1, 3, 256, 128]
+
     def _initialize_extractor(self):
         """FeatureExtractor를 로드하고 초기화합니다."""
         if FeatureExtractor is None:
             logger.error("torchreid library is not installed or FeatureExtractor cannot be imported.")
-            self.is_loaded = False
+            if self.use_onnx:
+                logger.info("use_onnx=True 감지 → torchreid 없이 ONNX-only 모드로 전환합니다.")
+                self._try_load_onnx_only()
+            else:
+                self.is_loaded = False
             return
 
         try:
@@ -149,7 +185,7 @@ class ReIDExtractor:
                 ...
             ]
         """
-        if not self.is_loaded or self.extractor is None:
+        if not self.is_loaded or (self.extractor is None and self.ort_session is None):
             logger.warning("ReID Extractor not loaded. Returning mock/empty vectors.")
             return []
 
@@ -183,10 +219,13 @@ class ReIDExtractor:
             try:
                 # ONNX 가속 추론 경로
                 if self.use_onnx and self.ort_session is not None:
-                    # PyTorch FeatureExtractor의 전처리 파이프라인을 그대로 사용하여 데이터 정규화 일관성 확보
-                    # self.extractor.preprocess는 [C, H, W] 텐서 반환
-                    tensor = self.extractor.preprocess(roi)
-                    input_data = tensor.unsqueeze(0).cpu().numpy()  # [1, C, H, W]
+                    if self.extractor is not None:
+                        # torchreid 전처리 파이프라인 사용
+                        tensor = self.extractor.preprocess(roi)
+                        input_data = tensor.unsqueeze(0).cpu().numpy()  # [1, C, H, W]
+                    else:
+                        # torchreid 없음 → 수동 전처리
+                        input_data = self._preprocess_for_onnx(roi)
                     
                     ort_inputs = {self.ort_session.get_inputs()[0].name: input_data}
                     features = self.ort_session.run(None, ort_inputs)[0]  # [1, 512]
