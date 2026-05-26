@@ -42,15 +42,17 @@ class ReIDExtractor:
 
     is_loaded = False
 
-    def __init__(self, model_name: str = 'osnet_x0_25', use_onnx: bool = False, preprocessor: ImagePreprocessor = None):
+    def __init__(self, model_name: str = 'osnet_x0_25', use_onnx: bool = False, preprocessor: ImagePreprocessor = None, device: str = None):
         """
         Args:
             model_name: 사용할 OSNet 모델 이름 (기본값: 'osnet_x0_25')
             use_onnx: ONNX Runtime 가속 사용 여부 (기본값: False)
             preprocessor: 저해상도 악조건 극복을 위한 ROI 선명화 보정 엔진
+            device: 연산 장치 명시적 지정 ('cpu', 'cuda', 'xpu' 등)
         """
         self.model_name = model_name
         self.use_onnx = use_onnx
+        self.device = device
         self.extractor = None
         self.ort_session = None
         self.vector_dim = 512  # OSNet 피처 임베딩 기본 차원
@@ -76,7 +78,15 @@ class ReIDExtractor:
         # 1단계: BoxMOT PyTorchBackend 사용 시도 (torchreid 빌드가 실패하는 환경 대비)
         if PyTorchBackend is not None:
             try:
-                device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+                if self.device is not None:
+                    device = torch.device(self.device)
+                else:
+                    if torch.cuda.is_available():
+                        device = torch.device('cuda:0')
+                    elif hasattr(torch, 'xpu') and torch.xpu.is_available():
+                        device = torch.device('xpu')
+                    else:
+                        device = torch.device('cpu')
                 logger.info(f"Attempting to initialize BoxMOT PyTorchBackend for Re-ID ({self.model_name}) on {device}...")
                 
                 # 모델 가중치 이름 규칙 변환 (ex: osnet_x0_25 -> osnet_x0_25_msmt17.pt)
@@ -87,7 +97,7 @@ class ReIDExtractor:
                 self.extractor = PyTorchBackend(
                     weights=weights_name,
                     device=device,
-                    half=(device.type == 'cuda')
+                    half=(device.type in ('cuda', 'xpu'))
                 )
                 self.is_loaded = True
                 logger.info("Re-ID FeatureExtractor (via BoxMOT PyTorchBackend) loaded successfully.")
@@ -102,11 +112,18 @@ class ReIDExtractor:
                 try:
                     import onnxruntime as ort
                     if os.path.exists(onnx_path):
-                        # GPU 가속을 위해 CUDAExecutionProvider 우선 지정
-                        providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+                        # GPU 및 타 하드웨어 가속(OpenVINO 등)을 위해 가용한 provider 중 우선순위 지정
+                        available_providers = ort.get_available_providers()
+                        providers = []
+                        for prov in ['CUDAExecutionProvider', 'OpenVINOExecutionProvider', 'CPUExecutionProvider']:
+                            if prov in available_providers:
+                                providers.append(prov)
+                        for prov in available_providers:
+                            if prov not in providers:
+                                providers.append(prov)
                         self.ort_session = ort.InferenceSession(onnx_path, providers=providers)
                         self.is_loaded = True
-                        logger.info(f"Loaded hardware-accelerated ONNX model from '{onnx_path}' (Pure ONNX mode)")
+                        logger.info(f"Loaded hardware-accelerated ONNX model from '{onnx_path}' (Pure ONNX mode) with providers {providers}")
                         return
                     else:
                         logger.error(f"ONNX model file not found at '{onnx_path}' and torchreid/boxmot is unavailable.")
@@ -122,7 +139,15 @@ class ReIDExtractor:
 
         # 3단계: torchreid 가 존재할 때 기존 가속화 로직 동작
         try:
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            if self.device is not None:
+                device = self.device
+            else:
+                if torch.cuda.is_available():
+                    device = 'cuda'
+                elif hasattr(torch, 'xpu') and torch.xpu.is_available():
+                    device = 'xpu'
+                else:
+                    device = 'cpu'
             logger.info(f"Initializing Re-ID FeatureExtractor ({self.model_name}) on {device}...")
             # FeatureExtractor 생성
             self.extractor = FeatureExtractor(
@@ -169,10 +194,17 @@ class ReIDExtractor:
                     
                     # 빌드된 ONNX 파일 로드
                     if os.path.exists(onnx_path):
-                        # GPU 가속을 위해 CUDAExecutionProvider 우선 지정
-                        providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+                        # GPU 및 타 하드웨어 가속(OpenVINO 등)을 위해 가용한 provider 중 우선순위 지정
+                        available_providers = ort.get_available_providers()
+                        providers = []
+                        for prov in ['CUDAExecutionProvider', 'OpenVINOExecutionProvider', 'CPUExecutionProvider']:
+                            if prov in available_providers:
+                                providers.append(prov)
+                        for prov in available_providers:
+                            if prov not in providers:
+                                providers.append(prov)
                         self.ort_session = ort.InferenceSession(onnx_path, providers=providers)
-                        logger.info(f"Loaded hardware-accelerated ONNX model from '{onnx_path}'")
+                        logger.info(f"Loaded hardware-accelerated ONNX model from '{onnx_path}' with providers {providers}")
                     else:
                         logger.warning("ONNX model file not found after export. Keeping PyTorch backend.")
                 except ImportError as e:

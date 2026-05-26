@@ -9,6 +9,15 @@ import logging
 from typing import List, Optional
 import numpy as np
 import torch
+
+# Monkey-patch BoxMOT's assert_cuda_available to bypass CUDA validation
+# and allow XPU (Intel GPU) support
+try:
+    import boxmot.utils.torch_utils as boxmot_torch
+    boxmot_torch.assert_cuda_available = lambda device: None
+except Exception:
+    pass
+
 from boxmot.trackers.tracker_zoo import create_tracker
 
 logger = logging.getLogger(__name__)
@@ -48,22 +57,32 @@ class PersonTracker:
 
     is_loaded = False
 
-    def __init__(self, tracker_type: str = 'botsort', reid_weights: str = 'osnet_x0_25_msmt17.pt'):
+    def __init__(self, tracker_type: str = 'botsort', reid_weights: str = 'osnet_x0_25_msmt17.pt', device: str = None):
         """
         Args:
             tracker_type: 사용할 BoxMOT 추적기 종류 ('botsort', 'deepocsort', 'bytetrack' 등)
             reid_weights: 추적기 내부 Re-ID 동작 시 사용할 가중치 경로/이름
+            device: 연산 장치 명시적 지정 ('cpu', 'cuda', 'xpu' 등)
         """
         self.tracker_type = tracker_type
         self.reid_weights = reid_weights
+        self.device = device
         self.tracker = None
         self._initialize_tracker()
 
     def _initialize_tracker(self):
         """BoxMOT 트래커 인스턴스를 생성하고 초기화합니다."""
         try:
-            device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-            half = True if device != 'cpu' else False
+            if self.device is not None:
+                device = self.device
+            else:
+                if torch.cuda.is_available():
+                    device = 'cuda:0'
+                elif hasattr(torch, 'xpu') and torch.xpu.is_available():
+                    device = 'xpu'
+                else:
+                    device = 'cpu'
+            half = True if (device != 'cpu' and 'cpu' not in str(device)) else False
             
             logger.info(f"Initializing BoxMOT tracker '{self.tracker_type}' on {device} (half={half})...")
             self.tracker = create_tracker(

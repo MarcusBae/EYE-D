@@ -114,23 +114,28 @@ class PipelineRunner:
     def _initialize_models(self):
         """detector, tracker, reid_extractor를 순서대로 초기화합니다."""
         try:
+            device = self.config.get('device', None)
+
             self._detector = PersonDetector(
                 model_path=self.config.get('yolo_model', 'yolov8n.pt'),
                 conf_threshold=self.config.get('conf_threshold', 0.5),
                 use_tensorrt=self.config.get('use_tensorrt', False),
                 iou=self.config.get('yolo_iou', 0.7),
+                device=device,
             )
             logger.info(f"Detector initialized (model={self.config.get('yolo_model', 'yolov8n.pt')})")
 
             self._tracker = PersonTracker(
                 tracker_type=self.config.get('tracker_type', 'botsort'),
                 reid_weights=self.config.get('reid_weights', 'osnet_x0_25_msmt17.pt'),
+                device=device,
             )
             logger.info(f"Tracker initialized (type={self.config.get('tracker_type', 'botsort')})")
 
             self._reid = ReIDExtractor(
                 model_name=self.config.get('reid_model', 'osnet_x0_25'),
                 use_onnx=self.config.get('use_onnx', False),
+                device=device,
             )
             logger.info(f"ReID Extractor initialized (model={self.config.get('reid_model', 'osnet_x0_25')})")
 

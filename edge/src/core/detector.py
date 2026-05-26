@@ -46,18 +46,20 @@ class PersonDetector:
 
     is_loaded = False
 
-    def __init__(self, model_path: str = 'yolov8n.pt', conf_threshold: float = 0.5, use_tensorrt: bool = False, iou: float = 0.7):
+    def __init__(self, model_path: str = 'yolov8n.pt', conf_threshold: float = 0.5, use_tensorrt: bool = False, iou: float = 0.7, device: str = None):
         """
         Args:
             model_path: YOLOv8 가중치 파일 (.pt 또는 TensorRT .engine 파일 등)
             conf_threshold: 탐지 신뢰도 임계값 (이 값 이상의 결과만 반환)
             use_tensorrt: TensorRT 모듈 사용 여부 (향후 확장성을 위해 보존)
             iou: NMS(Non-Maximum Suppression)를 위한 IoU 임계값 (기본: 0.7)
+            device: 연산 장치 명시적 지정 ('cpu', 'cuda', 'xpu' 등)
         """
         self.model_path = model_path
         self.conf_threshold = conf_threshold
         self.use_tensorrt = use_tensorrt
         self.iou = iou
+        self.device = device
         self.model = None
         self._initialize_model()
 
@@ -118,12 +120,18 @@ class PersonDetector:
 
         try:
             # predict 수행 (사람 클래스 0만 감지하고 싶지만 일단 전체 감지 후 필터링하거나 YOLO conf 설정을 따름)
+            predict_kwargs = {
+                "conf": self.conf_threshold,
+                "iou": self.iou,
+                "classes": [0],  # YOLO 내부적으로 0(person) 클래스만 출력하도록 필터링
+                "verbose": False
+            }
+            if self.device is not None:
+                predict_kwargs["device"] = self.device
+                
             results = self.model.predict(
                 frame,
-                conf=self.conf_threshold,
-                iou=self.iou,
-                classes=[0],  # YOLO 내부적으로 0(person) 클래스만 출력하도록 필터링
-                verbose=False
+                **predict_kwargs
             )
 
             detections = []
