@@ -11,12 +11,13 @@
 #       /content/drive/MyDrive/EYE-D/data/16000003.avi
 #   # DRIVE_ROOT 기본값: /content/drive/MyDrive/EYE-D  (다를 경우 명시)
 #   !COLAB=1 DRIVE_ROOT=/content/drive/MyDrive/MyProject bash run_batch.sh ...
-#   #COLAB=1 DRIVE_ROOT=/content/drive/MyDrive/projects/EYE-D/EYE-D bash ./run_batch.sh /content/drive/MyDrive/projects/EYE-D/EYE-D/data/16000000.avi
+#   #COLAB=1 MAX_FRAMES=3000 DRIVE_ROOT=/content/drive/MyDrive/projects/EYE-D/EYE-D bash ./run_batch.sh /content/drive/MyDrive/projects/EYE-D/EYE-D/data/16000000.avi
 # 
 # 옵션 환경변수:
 #   OUTPUT_DIR   결과 pkl 저장 폴더  (기본값: results  /  Colab: <DRIVE_ROOT>/results)
 #   MAX_FRAMES   분석할 최대 프레임   (기본값: inf, 전체 프레임)
 #   THRESHOLD    Re-ID 판별 임계값    (기본값: 0.85)
+#   CLEAN        1 로 설정 시 기존 pkl·출력 노트북 삭제 후 재실행 (기본값: 0)
 #   PARALLEL     동시 실행 수         (기본값: 1, 순차 실행)
 #   COLAB        1 로 설정 시 Colab 모드 활성화 (기본값: 0)
 #   DRIVE_ROOT   Colab 모드에서 Drive 내 프로젝트 루트 (기본값: /content/drive/MyDrive/EYE-D)
@@ -45,6 +46,7 @@ else
     THRESHOLD="${THRESHOLD:-0.85}"
 fi
 
+CLEAN="${CLEAN:-0}"
 PARALLEL="${PARALLEL:-1}"
 
 NB_IN="$(dirname "$0")/reid_performance.ipynb"
@@ -71,6 +73,7 @@ echo "  영상 수    : $#"
 echo "  결과 폴더  : $OUTPUT_DIR"
 echo "  최대 프레임: $MAX_FRAMES"
 echo "  임계값     : $THRESHOLD"
+echo "  클린 모드  : $([ "$CLEAN" = "1" ] && echo "ON (기존 pkl·노트북 삭제)" || echo "OFF")"
 echo "  동시 실행  : $PARALLEL"
 if [ "$COLAB" = "1" ]; then
 echo "  실행 환경  : Google Colab (Drive: $DRIVE_ROOT)"
@@ -99,6 +102,11 @@ run_one() {
         return 0
     fi
 
+    if [ "$CLEAN" = "1" ]; then
+        [ -f "$nb_out" ]                      && rm "$nb_out"                      && echo "  🗑 삭제: $nb_out"
+        [ -f "$OUTPUT_DIR/${name}.pkl" ]       && rm "$OUTPUT_DIR/${name}.pkl"       && echo "  🗑 삭제: $OUTPUT_DIR/${name}.pkl"
+    fi
+
     local colab_env=""
     if [ "$COLAB" = "1" ]; then
         colab_env="EYE_D_COLAB=1 EYE_D_DRIVE_ROOT=${DRIVE_ROOT}"
@@ -120,7 +128,7 @@ run_one() {
 }
 
 export -f run_one _fmt_elapsed
-export NB_IN NB_OUT_DIR OUTPUT_DIR MAX_FRAMES THRESHOLD COLAB DRIVE_ROOT BATCH_START
+export NB_IN NB_OUT_DIR OUTPUT_DIR MAX_FRAMES THRESHOLD CLEAN COLAB DRIVE_ROOT BATCH_START
 
 if [ "$PARALLEL" -gt 1 ]; then
     # GNU parallel 사용 (설치된 경우)
