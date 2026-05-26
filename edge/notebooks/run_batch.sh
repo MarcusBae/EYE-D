@@ -15,7 +15,7 @@
 # 
 # 옵션 환경변수:
 #   OUTPUT_DIR   결과 pkl 저장 폴더  (기본값: results  /  Colab: <DRIVE_ROOT>/results)
-#   MAX_FRAMES   분석할 최대 프레임   (기본값: 4000)
+#   MAX_FRAMES   분석할 최대 프레임   (기본값: inf, 전체 프레임)
 #   PARALLEL     동시 실행 수         (기본값: 1, 순차 실행)
 #   COLAB        1 로 설정 시 Colab 모드 활성화 (기본값: 0)
 #   DRIVE_ROOT   Colab 모드에서 Drive 내 프로젝트 루트 (기본값: /content/drive/MyDrive/EYE-D)
@@ -33,7 +33,7 @@ if [ "$COLAB" = "1" ]; then
 else
     OUTPUT_DIR="${OUTPUT_DIR:-results}"
 fi
-MAX_FRAMES="${MAX_FRAMES:-4000}"
+MAX_FRAMES="${MAX_FRAMES:-inf}"
 PARALLEL="${PARALLEL:-1}"
 
 NB_IN="$(dirname "$0")/reid_performance.ipynb"
@@ -96,7 +96,7 @@ run_one() {
         -p VIDEO_PATH  "$video"      \
         -p OUTPUT_DIR  "$OUTPUT_DIR" \
         -p MAX_FRAMES  "$MAX_FRAMES" \
-        --log-output 2>&1 | grep -E "(완료|오류|Error|WARNING|완전|Executing)"; then
+        --log-output 2>&1 | grep -E "(완료|오류|Error|WARNING|완전|Executing|비디오|전체|처리 예정|캐시)"; then
         local elapsed=$(( $(date +%s) - t0 ))
         echo "  ✓ 완료 → $nb_out  ($(_fmt_elapsed $elapsed))"
         echo "  ✓ pkl  → $OUTPUT_DIR/${name}.pkl"
