@@ -18,6 +18,7 @@
 #   MAX_FRAMES   분석할 최대 프레임   (기본값: inf, 전체 프레임)
 #   THRESHOLD    Re-ID 판별 임계값    (기본값: 0.85)
 #   CLEAN        1 로 설정 시 기존 pkl·출력 노트북 삭제 후 재실행 (기본값: 0)
+#   DEVICE       추론 디바이스 (기본값: auto → CUDA→XPU→CPU 순 자동 감지, 예: xpu, cpu)
 #   PARALLEL     동시 실행 수         (기본값: 1, 순차 실행)
 #   COLAB        1 로 설정 시 Colab 모드 활성화 (기본값: 0)
 #   DRIVE_ROOT   Colab 모드에서 Drive 내 프로젝트 루트 (기본값: /content/drive/MyDrive/EYE-D)
@@ -47,6 +48,7 @@ else
 fi
 
 CLEAN="${CLEAN:-0}"   # 0 이외의 값이면 모두 클린 모드로 동작 (예: CLEAN=1, CLEAN=yes)
+DEVICE="${DEVICE:-auto}"  # auto: 자동 감지, 직접 지정 가능 (예: DEVICE=xpu, DEVICE=cpu)
 PARALLEL="${PARALLEL:-1}"
 
 NB_IN="$(dirname "$0")/reid_performance.ipynb"
@@ -74,6 +76,7 @@ echo "  결과 폴더  : $OUTPUT_DIR"
 echo "  최대 프레임: $MAX_FRAMES"
 echo "  임계값     : $THRESHOLD"
 echo "  클린 모드  : $([ "$CLEAN" != "0" ] && echo "ON (기존 pkl·노트북 삭제)" || echo "OFF")"
+echo "  디바이스   : $DEVICE"
 echo "  동시 실행  : $PARALLEL"
 if [ "$COLAB" = "1" ]; then
 echo "  실행 환경  : Google Colab (Drive: $DRIVE_ROOT)"
@@ -117,7 +120,8 @@ run_one() {
         -p OUTPUT_DIR         "$OUTPUT_DIR" \
         -p MAX_FRAMES         "$MAX_FRAMES" \
         -p CURRENT_THRESHOLD  "$THRESHOLD"  \
-        --log-output 2>&1 | grep -E "(완료|오류|Error|WARNING|완전|Executing|비디오|전체|처리 예정|캐시)"; then
+        -p DEVICE             "$DEVICE"     \
+        --log-output 2>&1 | grep -E "(완료|오류|Error|WARNING|완전|Executing|비디오|전체|처리 예정|캐시|XPU|디바이스)"; then
         local elapsed=$(( $(date +%s) - t0 ))
         echo "  ✓ 완료 → $nb_out  ($(_fmt_elapsed $elapsed))"
         echo "  ✓ pkl  → $OUTPUT_DIR/${name}.pkl"
@@ -128,7 +132,7 @@ run_one() {
 }
 
 export -f run_one _fmt_elapsed
-export NB_IN NB_OUT_DIR OUTPUT_DIR MAX_FRAMES THRESHOLD CLEAN COLAB DRIVE_ROOT BATCH_START
+export NB_IN NB_OUT_DIR OUTPUT_DIR MAX_FRAMES THRESHOLD CLEAN DEVICE COLAB DRIVE_ROOT BATCH_START
 
 if [ "$PARALLEL" -gt 1 ]; then
     # GNU parallel 사용 (설치된 경우)
