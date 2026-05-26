@@ -16,6 +16,7 @@
 # 옵션 환경변수:
 #   OUTPUT_DIR   결과 pkl 저장 폴더  (기본값: results  /  Colab: <DRIVE_ROOT>/results)
 #   MAX_FRAMES   분석할 최대 프레임   (기본값: inf, 전체 프레임)
+#   THRESHOLD    Re-ID 판별 임계값    (기본값: 0.85)
 #   PARALLEL     동시 실행 수         (기본값: 1, 순차 실행)
 #   COLAB        1 로 설정 시 Colab 모드 활성화 (기본값: 0)
 #   DRIVE_ROOT   Colab 모드에서 Drive 내 프로젝트 루트 (기본값: /content/drive/MyDrive/EYE-D)
@@ -34,6 +35,16 @@ else
     OUTPUT_DIR="${OUTPUT_DIR:-results}"
 fi
 MAX_FRAMES="${MAX_FRAMES:-inf}"
+
+# .env 에서 REID_SIMILARITY_THRESHOLD 읽기 (THRESHOLD 환경변수가 없을 때만)
+_ENV_FILE="$(dirname "$0")/../../server/.env"
+if [ -z "${THRESHOLD:-}" ] && [ -f "$_ENV_FILE" ]; then
+    _ENV_VAL=$(grep -E '^REID_SIMILARITY_THRESHOLD=' "$_ENV_FILE" | tail -1 | cut -d'=' -f2 | tr -d '[:space:]')
+    THRESHOLD="${_ENV_VAL:-0.85}"
+else
+    THRESHOLD="${THRESHOLD:-0.85}"
+fi
+
 PARALLEL="${PARALLEL:-1}"
 
 NB_IN="$(dirname "$0")/reid_performance.ipynb"
@@ -59,6 +70,7 @@ echo "  Re-ID 배치 분석 시작  [$(date '+%Y-%m-%d %H:%M:%S')]"
 echo "  영상 수    : $#"
 echo "  결과 폴더  : $OUTPUT_DIR"
 echo "  최대 프레임: $MAX_FRAMES"
+echo "  임계값     : $THRESHOLD"
 echo "  동시 실행  : $PARALLEL"
 if [ "$COLAB" = "1" ]; then
 echo "  실행 환경  : Google Colab (Drive: $DRIVE_ROOT)"
@@ -93,9 +105,10 @@ run_one() {
     fi
 
     if env $colab_env papermill "$NB_IN" "$nb_out" \
-        -p VIDEO_PATH  "$video"      \
-        -p OUTPUT_DIR  "$OUTPUT_DIR" \
-        -p MAX_FRAMES  "$MAX_FRAMES" \
+        -p VIDEO_PATH         "$video"      \
+        -p OUTPUT_DIR         "$OUTPUT_DIR" \
+        -p MAX_FRAMES         "$MAX_FRAMES" \
+        -p CURRENT_THRESHOLD  "$THRESHOLD"  \
         --log-output 2>&1 | grep -E "(완료|오류|Error|WARNING|완전|Executing|비디오|전체|처리 예정|캐시)"; then
         local elapsed=$(( $(date +%s) - t0 ))
         echo "  ✓ 완료 → $nb_out  ($(_fmt_elapsed $elapsed))"
@@ -107,7 +120,7 @@ run_one() {
 }
 
 export -f run_one _fmt_elapsed
-export NB_IN NB_OUT_DIR OUTPUT_DIR MAX_FRAMES COLAB DRIVE_ROOT BATCH_START
+export NB_IN NB_OUT_DIR OUTPUT_DIR MAX_FRAMES THRESHOLD COLAB DRIVE_ROOT BATCH_START
 
 if [ "$PARALLEL" -gt 1 ]; then
     # GNU parallel 사용 (설치된 경우)
