@@ -25,7 +25,7 @@
 set -euo pipefail
 
 COLAB="${COLAB:-0}"
-DRIVE_ROOT="${DRIVE_ROOT:-/content/drive/MyDrive/EYE-D}"
+DRIVE_ROOT="${DRIVE_ROOT:-/content/drive/MyDrive/projects/EYE-D/EYE-D}"
 
 if [ "$COLAB" = "1" ]; then
     OUTPUT_DIR="${OUTPUT_DIR:-${DRIVE_ROOT}/results}"
