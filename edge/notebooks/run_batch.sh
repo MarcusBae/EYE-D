@@ -11,7 +11,8 @@
 #       /content/drive/MyDrive/EYE-D/data/16000003.avi
 #   # DRIVE_ROOT 기본값: /content/drive/MyDrive/EYE-D  (다를 경우 명시)
 #   !COLAB=1 DRIVE_ROOT=/content/drive/MyDrive/MyProject bash run_batch.sh ...
-#
+#   #COLAB=1 DRIVE_ROOT=/content/drive/MyDrive/projects/EYE-D/EYE-D bash ./run_batch.sh /content/drive/MyDrive/projects/EYE-D/EYE-D/data/16000000.avi
+# 
 # 옵션 환경변수:
 #   OUTPUT_DIR   결과 pkl 저장 폴더  (기본값: results  /  Colab: <DRIVE_ROOT>/results)
 #   MAX_FRAMES   분석할 최대 프레임   (기본값: 4000)
@@ -51,8 +52,10 @@ if ! command -v papermill &>/dev/null; then
     exit 1
 fi
 
+BATCH_START=$(date +%s)
+
 echo "═══════════════════════════════════════════════════"
-echo "  Re-ID 배치 분석 시작"
+echo "  Re-ID 배치 분석 시작  [$(date '+%Y-%m-%d %H:%M:%S')]"
 echo "  영상 수    : $#"
 echo "  결과 폴더  : $OUTPUT_DIR"
 echo "  최대 프레임: $MAX_FRAMES"
@@ -62,15 +65,22 @@ echo "  실행 환경  : Google Colab (Drive: $DRIVE_ROOT)"
 fi
 echo "═══════════════════════════════════════════════════"
 
+_fmt_elapsed() {
+    local secs=$1
+    printf '%02d:%02d:%02d' $((secs/3600)) $((secs%3600/60)) $((secs%60))
+}
+
 run_one() {
     local video="$1"
     local name
     name=$(basename "$video")
     name="${name%.*}"
     local nb_out="$NB_OUT_DIR/${name}.ipynb"
+    local t0
+    t0=$(date +%s)
 
     echo ""
-    echo "▶ 처리 중: $video"
+    echo "▶ 처리 중: $video  [$(date '+%H:%M:%S')]"
 
     if [ ! -e "$video" ]; then
         echo "  ✗ 파일 없음: $video — 건너뜁니다."
@@ -87,15 +97,17 @@ run_one() {
         -p OUTPUT_DIR  "$OUTPUT_DIR" \
         -p MAX_FRAMES  "$MAX_FRAMES" \
         --log-output 2>&1 | grep -E "(완료|오류|Error|WARNING|완전|Executing)"; then
-        echo "  ✓ 완료 → $nb_out"
+        local elapsed=$(( $(date +%s) - t0 ))
+        echo "  ✓ 완료 → $nb_out  ($(_fmt_elapsed $elapsed))"
         echo "  ✓ pkl  → $OUTPUT_DIR/${name}.pkl"
     else
-        echo "  ✗ 실패: $video"
+        local elapsed=$(( $(date +%s) - t0 ))
+        echo "  ✗ 실패: $video  ($(_fmt_elapsed $elapsed))"
     fi
 }
 
-export -f run_one
-export NB_IN NB_OUT_DIR OUTPUT_DIR MAX_FRAMES COLAB DRIVE_ROOT
+export -f run_one _fmt_elapsed
+export NB_IN NB_OUT_DIR OUTPUT_DIR MAX_FRAMES COLAB DRIVE_ROOT BATCH_START
 
 if [ "$PARALLEL" -gt 1 ]; then
     # GNU parallel 사용 (설치된 경우)
@@ -109,9 +121,10 @@ else
     for video in "$@"; do run_one "$video"; done
 fi
 
+TOTAL_ELAPSED=$(( $(date +%s) - BATCH_START ))
 echo ""
 echo "═══════════════════════════════════════════════════"
-echo "  배치 실행 완료"
+echo "  배치 실행 완료  [$(date '+%Y-%m-%d %H:%M:%S')]  총 소요: $(_fmt_elapsed $TOTAL_ELAPSED)"
 echo "  pkl 결과 : $OUTPUT_DIR/"
 echo "  출력 노트북: $NB_OUT_DIR/"
 echo ""
