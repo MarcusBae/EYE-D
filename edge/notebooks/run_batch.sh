@@ -2,21 +2,36 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # run_batch.sh  —  여러 영상에 대해 reid_performance.ipynb 를 자동 실행합니다.
 #
-# 사용법:
+# 사용법 (로컬):
 #   bash run_batch.sh /path/to/videos/*.avi
 #   bash run_batch.sh /data/cam1.avi /data/cam2.avi /data/cam3.avi
 #
+# 사용법 (Google Colab 셀):
+#   !COLAB=1 bash /content/drive/MyDrive/EYE-D/edge/notebooks/run_batch.sh \
+#       /content/drive/MyDrive/EYE-D/data/16000003.avi
+#   # DRIVE_ROOT 기본값: /content/drive/MyDrive/EYE-D  (다를 경우 명시)
+#   !COLAB=1 DRIVE_ROOT=/content/drive/MyDrive/MyProject bash run_batch.sh ...
+#
 # 옵션 환경변수:
-#   OUTPUT_DIR   결과 pkl 저장 폴더  (기본값: results)
+#   OUTPUT_DIR   결과 pkl 저장 폴더  (기본값: results  /  Colab: <DRIVE_ROOT>/results)
 #   MAX_FRAMES   분석할 최대 프레임   (기본값: 4000)
 #   PARALLEL     동시 실행 수         (기본값: 1, 순차 실행)
+#   COLAB        1 로 설정 시 Colab 모드 활성화 (기본값: 0)
+#   DRIVE_ROOT   Colab 모드에서 Drive 내 프로젝트 루트 (기본값: /content/drive/MyDrive/EYE-D)
 #
 # 예시:
 #   OUTPUT_DIR=results MAX_FRAMES=2000 PARALLEL=2 bash run_batch.sh /data/*.avi
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-OUTPUT_DIR="${OUTPUT_DIR:-results}"
+COLAB="${COLAB:-0}"
+DRIVE_ROOT="${DRIVE_ROOT:-/content/drive/MyDrive/EYE-D}"
+
+if [ "$COLAB" = "1" ]; then
+    OUTPUT_DIR="${OUTPUT_DIR:-${DRIVE_ROOT}/results}"
+else
+    OUTPUT_DIR="${OUTPUT_DIR:-results}"
+fi
 MAX_FRAMES="${MAX_FRAMES:-4000}"
 PARALLEL="${PARALLEL:-1}"
 
@@ -42,11 +57,10 @@ echo "  영상 수    : $#"
 echo "  결과 폴더  : $OUTPUT_DIR"
 echo "  최대 프레임: $MAX_FRAMES"
 echo "  동시 실행  : $PARALLEL"
+if [ "$COLAB" = "1" ]; then
+echo "  실행 환경  : Google Colab (Drive: $DRIVE_ROOT)"
+fi
 echo "═══════════════════════════════════════════════════"
-
-SKIP_COUNT=0
-FAIL_COUNT=0
-OK_COUNT=0
 
 run_one() {
     local video="$1"
@@ -63,7 +77,12 @@ run_one() {
         return 0
     fi
 
-    if papermill "$NB_IN" "$nb_out" \
+    local colab_env=""
+    if [ "$COLAB" = "1" ]; then
+        colab_env="EYE_D_COLAB=1 EYE_D_DRIVE_ROOT=${DRIVE_ROOT}"
+    fi
+
+    if env $colab_env papermill "$NB_IN" "$nb_out" \
         -p VIDEO_PATH  "$video"      \
         -p OUTPUT_DIR  "$OUTPUT_DIR" \
         -p MAX_FRAMES  "$MAX_FRAMES" \
@@ -76,7 +95,7 @@ run_one() {
 }
 
 export -f run_one
-export NB_IN NB_OUT_DIR OUTPUT_DIR MAX_FRAMES
+export NB_IN NB_OUT_DIR OUTPUT_DIR MAX_FRAMES COLAB DRIVE_ROOT
 
 if [ "$PARALLEL" -gt 1 ]; then
     # GNU parallel 사용 (설치된 경우)

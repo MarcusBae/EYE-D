@@ -17,7 +17,7 @@ async def find_or_create_global_id(
         - matched=False 면 새 사람 생성, similarity=None
     """
     if threshold is None:
-        threshold = float(os.getenv("REID_SIMILARITY_THRESHOLD", "0.85"))
+        threshold = float(os.getenv("REID_SIMILARITY_THRESHOLD", "0.73"))
     distance_threshold = 1.0 - threshold  # 0.85 → 0.15
 
     # 최근 24시간 내 global_id가 부여된 탐지 중 가장 가까운 1건

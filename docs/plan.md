@@ -121,7 +121,7 @@
 
 | # | 분류 | Action Item | 근거 | 예상 효과 | 노트북 검증 | Status |
 |:---:|---|---|---|---|:---:|:---:|
-| 1-1 | **Re-ID 튜닝** | `.env` `REID_SIMILARITY_THRESHOLD=0.73` 적용 | 실측: FN율 39%→18%, Rank-1 +9.5%p | 즉시 | ✓ 직접 | `Todo` |
+| 1-1 | **Re-ID 튜닝** | `.env` `REID_SIMILARITY_THRESHOLD=0.73` 적용 | 실측: FN율 39%→18%, Rank-1 +9.5%p | 즉시 | ✓ 직접 | `Done` |
 | 1-3 | **Re-ID 튜닝** | Temporal Mean Pooling 구현 (plan.md 3순위 개선안) | Rank-1 +3~7%p 예상 | 중간 | ✓ 직접 | `Todo` |
 | 1-11 | **평가 지표** | 노트북에 mAP 평가 구현 (gallery/query 분리 기반) | mAP 기준값 측정 및 Phase 1 목표(≥45%) 검증 | 낮음 | ✓ 직접 | `Todo` |
 | 1-2 | **Re-ID 튜닝** | 화질 게이트 구현 (라플라시안 분산 기반 저품질 프레임 Re-ID 스킵) | 저품질 프레임 오염 제거 | 낮음~중간 | △ 간접 | `Todo` |
