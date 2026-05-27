@@ -86,38 +86,35 @@ echo "════════════════════════�
 
 _fmt_elapsed() { printf '%02d:%02d:%02d' $(($1/3600)) $(($1%3600/60)) $(($1%60)); }
 
-# tracks.pkl이 완전히 처리됐는지 확인 (Python으로 체크)
+# tracks.pkl이 완전히 처리됐는지 확인
 _tracks_complete() {
     local pkl="$1" video="$2"
-    python3 - <<PYEOF
+    python3 -c "
 import pickle, cv2, sys
 try:
-    with open('$pkl', 'rb') as f:
-        d = pickle.load(f)
+    d = pickle.load(open('$pkl','rb'))
     done = d.get('frames_processed', 0)
     total = d.get('total_frames') or int(cv2.VideoCapture('$video').get(cv2.CAP_PROP_FRAME_COUNT))
     sys.exit(0 if done >= total else 1)
 except Exception:
     sys.exit(1)
-PYEOF
+"
 }
 
 _pkl_complete() {
     local pkl="$1" video="$2"
-    python3 - <<PYEOF
+    python3 -c "
 import pickle, cv2, sys
 try:
-    with open('$pkl', 'rb') as f:
-        d = pickle.load(f)
+    d = pickle.load(open('$pkl','rb'))
     done = d.get('frames_processed')
     if done is None:
-        sys.exit(0)  # 구버전 pkl (frames_processed 없음) = 완료로 간주
-    cap = cv2.VideoCapture('$video')
-    total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        sys.exit(0)
+    total = int(cv2.VideoCapture('$video').get(cv2.CAP_PROP_FRAME_COUNT))
     sys.exit(0 if done >= total else 1)
 except Exception:
     sys.exit(1)
-PYEOF
+"
 }
 
 run_one() {
@@ -188,7 +185,7 @@ run_one() {
     fi
 }
 
-export -f run_one _fmt_elapsed _tracks_complete _pkl_complete
+export -f run_one _fmt_elapsed
 export NB_S1 NB_S2 NB_OUT_DIR TRACKS_DIR OUTPUT_DIR IMAGE_DIR FRAME_STEP MAX_FRAMES THRESHOLD CLEAN COLAB DRIVE_ROOT GIT_COMMIT GIT_BRANCH
 
 for video in "$@"; do run_one "$video"; done
