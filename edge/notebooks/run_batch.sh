@@ -42,6 +42,9 @@ else
     OUTPUT_DIR="${OUTPUT_DIR:-results}"
 fi
 IMAGE_DIR="${IMAGE_DIR:-}"
+if [ "$COLAB" = "1" ] && [ -n "${IMAGE_DIR:-}" ] && [[ "$IMAGE_DIR" != /* ]]; then
+    IMAGE_DIR="${DRIVE_ROOT}/${IMAGE_DIR}"
+fi
 MAX_FRAMES="${MAX_FRAMES:-inf}"
 
 # .env 에서 REID_SIMILARITY_THRESHOLD 읽기 (THRESHOLD 환경변수가 없을 때만)
