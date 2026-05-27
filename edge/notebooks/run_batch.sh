@@ -14,6 +14,7 @@
 
 #   #COLAB=1 CLEAN=1 MAX_FRAMES=3000 DRIVE_ROOT=/content/drive/MyDrive/projects/EYE-D/EYE-D bash ./run_batch.sh /content/drive/MyDrive/projects/EYE-D/EYE-D/data/16000000.avi
 #   #COLAB=0 CLEAN=1 MAX_FRAMES=100 bash run_batch.sh ../../data/16000000.avi
+#   #COLAB=1 DRIVE_ROOT=/content/drive/MyDrive/projects/EYE-D/EYE-D bash ./run_batch.sh /content/drive/MyDrive/projects/EYE-D/EYE-D/data/*.avi   
 # 
 # 옵션 환경변수:
 #   OUTPUT_DIR   결과 pkl 저장 폴더  (기본값: results  /  Colab: <DRIVE_ROOT>/results)
@@ -100,6 +101,7 @@ run_one() {
     name=$(basename "$video")
     name="${name%.*}"
     local nb_out="$NB_OUT_DIR/${name}.ipynb"
+    local pkl_out="$OUTPUT_DIR/${name}.pkl"
     local t0
     t0=$(date +%s)
 
@@ -112,8 +114,11 @@ run_one() {
     fi
 
     if [ "$CLEAN" != "0" ]; then
-        [ -f "$nb_out" ]                      && rm "$nb_out"                      && echo "  🗑 삭제: $nb_out"
-        [ -f "$OUTPUT_DIR/${name}.pkl" ]       && rm "$OUTPUT_DIR/${name}.pkl"       && echo "  🗑 삭제: $OUTPUT_DIR/${name}.pkl"
+        [ -f "$nb_out" ]   && rm "$nb_out"   && echo "  🗑 삭제: $nb_out"
+        [ -f "$pkl_out" ]  && rm "$pkl_out"  && echo "  🗑 삭제: $pkl_out"
+    elif [ -f "$pkl_out" ] && [ -s "$pkl_out" ]; then
+        echo "  ⏭ 건너뜀 (이미 완료): $pkl_out"
+        return 0
     fi
 
     local colab_env=""
@@ -131,7 +136,7 @@ run_one() {
         --log-output 2>&1 | grep -E "(완료|오류|Error|WARNING|완전|Executing|비디오|전체|처리 예정|캐시)"; then
         local elapsed=$(( $(date +%s) - t0 ))
         echo "  ✓ 완료 → $nb_out  ($(_fmt_elapsed $elapsed))"
-        echo "  ✓ pkl  → $OUTPUT_DIR/${name}.pkl"
+        echo "  ✓ pkl  → $pkl_out"
     else
         local elapsed=$(( $(date +%s) - t0 ))
         echo "  ✗ 실패: $video  ($(_fmt_elapsed $elapsed))"
