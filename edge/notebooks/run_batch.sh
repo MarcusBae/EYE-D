@@ -18,6 +18,8 @@
 # 
 # 옵션 환경변수:
 #   OUTPUT_DIR   결과 pkl 저장 폴더  (기본값: results  /  Colab: <DRIVE_ROOT>/results)
+#   IMAGE_DIR    학습용 이미지 저장 폴더 (기본값: 비어있음 = 저장 안 함)
+#                설정 시 {IMAGE_DIR}/{영상이름}/track_{id:06d}/{frame:06d}.jpg 로 저장
 #   MAX_FRAMES   분석할 최대 프레임   (기본값: inf, 전체 프레임)
 #   THRESHOLD    Re-ID 판별 임계값    (기본값: 0.85)
 #   CLEAN        1 로 설정 시 기존 pkl·출력 노트북 삭제 후 재실행 (기본값: 0)
@@ -27,6 +29,7 @@
 #
 # 예시:
 #   OUTPUT_DIR=results MAX_FRAMES=2000 PARALLEL=2 bash run_batch.sh /data/*.avi
+#   IMAGE_DIR=dataset bash run_batch.sh /data/*.avi
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -38,6 +41,7 @@ if [ "$COLAB" = "1" ]; then
 else
     OUTPUT_DIR="${OUTPUT_DIR:-results}"
 fi
+IMAGE_DIR="${IMAGE_DIR:-}"
 MAX_FRAMES="${MAX_FRAMES:-inf}"
 
 # .env 에서 REID_SIMILARITY_THRESHOLD 읽기 (THRESHOLD 환경변수가 없을 때만)
@@ -79,6 +83,7 @@ echo "════════════════════════�
 echo "  Re-ID 배치 분석 시작  [$(date '+%Y-%m-%d %H:%M:%S')]"
 echo "  영상 수    : $#"
 echo "  결과 폴더  : $OUTPUT_DIR"
+echo "  이미지 폴더: $([ -n "$IMAGE_DIR" ] && echo "$IMAGE_DIR" || echo "저장 안 함")"
 echo "  최대 프레임: $MAX_FRAMES"
 echo "  임계값     : $THRESHOLD"
 echo "  클린 모드  : $([ "$CLEAN" != "0" ] && echo "ON (기존 pkl·노트북 삭제)" || echo "OFF")"
@@ -129,6 +134,7 @@ run_one() {
     if env $colab_env papermill "$NB_IN" "$nb_out" \
         -p VIDEO_PATH         "$video"      \
         -p OUTPUT_DIR         "$OUTPUT_DIR" \
+        -p IMAGE_DIR          "$IMAGE_DIR"  \
         -p MAX_FRAMES         "$MAX_FRAMES" \
         -p CURRENT_THRESHOLD  "$THRESHOLD"  \
         -p GIT_COMMIT         "$GIT_COMMIT" \
@@ -144,7 +150,7 @@ run_one() {
 }
 
 export -f run_one _fmt_elapsed
-export NB_IN NB_OUT_DIR OUTPUT_DIR MAX_FRAMES THRESHOLD CLEAN COLAB DRIVE_ROOT BATCH_START GIT_COMMIT GIT_BRANCH
+export NB_IN NB_OUT_DIR OUTPUT_DIR IMAGE_DIR MAX_FRAMES THRESHOLD CLEAN COLAB DRIVE_ROOT BATCH_START GIT_COMMIT GIT_BRANCH
 
 if [ "$PARALLEL" -gt 1 ]; then
     # GNU parallel 사용 (설치된 경우)
@@ -162,7 +168,10 @@ TOTAL_ELAPSED=$(( $(date +%s) - BATCH_START ))
 echo ""
 echo "═══════════════════════════════════════════════════"
 echo "  배치 실행 완료  [$(date '+%Y-%m-%d %H:%M:%S')]  총 소요: $(_fmt_elapsed $TOTAL_ELAPSED)"
-echo "  pkl 결과 : $OUTPUT_DIR/"
+echo "  pkl 결과   : $OUTPUT_DIR/"
+if [ -n "$IMAGE_DIR" ]; then
+echo "  이미지     : $IMAGE_DIR/"
+fi
 echo "  출력 노트북: $NB_OUT_DIR/"
 echo ""
 echo "  다음 단계: reid_aggregate.ipynb 실행"
