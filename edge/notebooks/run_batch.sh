@@ -49,6 +49,11 @@ fi
 CLEAN="${CLEAN:-0}"   # 0 이외의 값이면 모두 클린 모드로 동작 (예: CLEAN=1, CLEAN=yes)
 PARALLEL="${PARALLEL:-1}"
 
+# Git 버전 정보 수집 (노트북 출력·pkl 에 기록돼 나중에 소스 버전을 추적할 수 있음)
+_REPO_DIR="$(dirname "$0")/../.."
+GIT_COMMIT=$(git -C "$_REPO_DIR" rev-parse HEAD             2>/dev/null || echo "unknown")
+GIT_BRANCH=$(git -C "$_REPO_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+
 NB_IN="$(dirname "$0")/reid_performance.ipynb"
 NB_OUT_DIR="$(dirname "$0")/outputs"
 
@@ -75,6 +80,8 @@ echo "  최대 프레임: $MAX_FRAMES"
 echo "  임계값     : $THRESHOLD"
 echo "  클린 모드  : $([ "$CLEAN" != "0" ] && echo "ON (기존 pkl·노트북 삭제)" || echo "OFF")"
 echo "  동시 실행  : $PARALLEL"
+echo "  git branch : $GIT_BRANCH"
+echo "  git commit : ${GIT_COMMIT:0:12}..."
 if [ "$COLAB" = "1" ]; then
 echo "  실행 환경  : Google Colab (Drive: $DRIVE_ROOT)"
 fi
@@ -117,6 +124,8 @@ run_one() {
         -p OUTPUT_DIR         "$OUTPUT_DIR" \
         -p MAX_FRAMES         "$MAX_FRAMES" \
         -p CURRENT_THRESHOLD  "$THRESHOLD"  \
+        -p GIT_COMMIT         "$GIT_COMMIT" \
+        -p GIT_BRANCH         "$GIT_BRANCH" \
         --log-output 2>&1 | grep -E "(완료|오류|Error|WARNING|완전|Executing|비디오|전체|처리 예정|캐시)"; then
         local elapsed=$(( $(date +%s) - t0 ))
         echo "  ✓ 완료 → $nb_out  ($(_fmt_elapsed $elapsed))"
@@ -128,7 +137,7 @@ run_one() {
 }
 
 export -f run_one _fmt_elapsed
-export NB_IN NB_OUT_DIR OUTPUT_DIR MAX_FRAMES THRESHOLD CLEAN COLAB DRIVE_ROOT BATCH_START
+export NB_IN NB_OUT_DIR OUTPUT_DIR MAX_FRAMES THRESHOLD CLEAN COLAB DRIVE_ROOT BATCH_START GIT_COMMIT GIT_BRANCH
 
 if [ "$PARALLEL" -gt 1 ]; then
     # GNU parallel 사용 (설치된 경우)
