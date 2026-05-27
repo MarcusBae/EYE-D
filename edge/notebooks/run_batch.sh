@@ -11,7 +11,9 @@
 #       /content/drive/MyDrive/EYE-D/data/16000003.avi
 #   # DRIVE_ROOT 기본값: /content/drive/MyDrive/EYE-D  (다를 경우 명시)
 #   !COLAB=1 DRIVE_ROOT=/content/drive/MyDrive/MyProject bash run_batch.sh ...
+
 #   #COLAB=1 CLEAN=1 MAX_FRAMES=3000 DRIVE_ROOT=/content/drive/MyDrive/projects/EYE-D/EYE-D bash ./run_batch.sh /content/drive/MyDrive/projects/EYE-D/EYE-D/data/16000000.avi
+#   #COLAB=0 CLEAN=1 MAX_FRAMES=100 bash run_batch.sh ../../data/16000000.avi
 # 
 # 옵션 환경변수:
 #   OUTPUT_DIR   결과 pkl 저장 폴더  (기본값: results  /  Colab: <DRIVE_ROOT>/results)
