@@ -150,7 +150,7 @@ run_one() {
             -p MAX_FRAMES  "$MAX_FRAMES" \
             -p GIT_COMMIT  "$GIT_COMMIT" \
             -p GIT_BRANCH  "$GIT_BRANCH" \
-            --log-output 2>&1 | grep -E "(완료|오류|Error|체크포인트|재개|트랙)"; then
+            --log-output 2>&1 | grep -E "(완료|오류|Error|체크포인트|재개|트랙|프레임|Executing)"; then
             echo "  ✓ Stage 1 완료 → $tracks_pkl"
         else
             echo "  ✗ Stage 1 실패"
@@ -175,7 +175,7 @@ run_one() {
             -p CURRENT_THRESHOLD "$THRESHOLD"   \
             -p GIT_COMMIT        "$GIT_COMMIT"  \
             -p GIT_BRANCH        "$GIT_BRANCH"  \
-            --log-output 2>&1 | grep -E "(완료|오류|Error|체크포인트|재개|트랙|임베딩)"; then
+            --log-output 2>&1 | grep -E "(완료|오류|Error|체크포인트|재개|트랙|임베딩|프레임|Executing)"; then
             local elapsed=$(( $(date +%s) - t0 ))
             echo "  ✓ Stage 2 완료 → $result_pkl  ($(_fmt_elapsed $elapsed))"
         else
