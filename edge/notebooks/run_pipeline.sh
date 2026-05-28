@@ -56,7 +56,13 @@ GIT_BRANCH=$(git -C "$_REPO_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo
 
 NB_S1="$(dirname "$0")/collect_tracks.ipynb"
 NB_S2="$(dirname "$0")/reid_performance.ipynb"
-NB_OUT_DIR="$(dirname "$0")/outputs"
+
+# 출력 노트북은 임시 파일이므로 Colab 로컬에 저장 (Drive I/O 불필요)
+if [ "$COLAB" = "1" ]; then
+    NB_OUT_DIR="/content/nb_outputs"
+else
+    NB_OUT_DIR="$(dirname "$0")/outputs"
+fi
 
 mkdir -p "$NB_OUT_DIR" "$TRACKS_DIR" "$OUTPUT_DIR"
 
@@ -136,6 +142,8 @@ run_one() {
         [ -f "$tracks_pkl" ] && rm "$tracks_pkl" && echo "  🗑 삭제: $tracks_pkl"
         [ -f "$result_pkl" ] && rm "$result_pkl" && echo "  🗑 삭제: $result_pkl"
     fi
+
+    mkdir -p "$NB_OUT_DIR" "$TRACKS_DIR" "$OUTPUT_DIR"
 
     # ── Stage 1: 트랙 수집 ────────────────────────────────────────────────────
     if [ -f "$tracks_pkl" ] && _tracks_complete "$tracks_pkl" "$video"; then
