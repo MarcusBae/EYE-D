@@ -186,7 +186,7 @@ run_one() {
             -p CURRENT_THRESHOLD "$THRESHOLD"   \
             -p GIT_COMMIT        "$GIT_COMMIT"  \
             -p GIT_BRANCH        "$GIT_BRANCH"  \
-            --execution-timeout 3600            \
+            --execution-timeout -1              \
             --log-output 2>&1 | grep -E "(완료|오류|Error|체크포인트|재개|트랙|임베딩|프레임|Executing)"; then
             [ "$COLAB" = "1" ] && cp "$NB_OUT_TMP/${name}_s2.ipynb" "$NB_OUT_DIR/"
             local elapsed=$(( $(date +%s) - t0 ))
