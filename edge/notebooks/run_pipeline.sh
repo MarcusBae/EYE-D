@@ -57,14 +57,16 @@ GIT_BRANCH=$(git -C "$_REPO_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo
 NB_S1="$(dirname "$0")/collect_tracks.ipynb"
 NB_S2="$(dirname "$0")/reid_performance.ipynb"
 
-# 출력 노트북은 임시 파일이므로 Colab 로컬에 저장 (Drive I/O 불필요)
+# Colab: papermill은 로컬 임시 폴더에 쓰고, 성공 시 Drive로 복사
 if [ "$COLAB" = "1" ]; then
-    NB_OUT_DIR="/content/nb_outputs"
+    NB_OUT_DIR="${DRIVE_ROOT}/edge/notebooks/outputs"
+    NB_OUT_TMP="/content/nb_outputs"
 else
     NB_OUT_DIR="$(dirname "$0")/outputs"
+    NB_OUT_TMP="$NB_OUT_DIR"
 fi
 
-mkdir -p "$NB_OUT_DIR" "$TRACKS_DIR" "$OUTPUT_DIR"
+mkdir -p "$NB_OUT_TMP" "$NB_OUT_DIR" "$TRACKS_DIR" "$OUTPUT_DIR"
 
 if [ $# -eq 0 ]; then
     echo "사용법: bash run_pipeline.sh <video1> [video2] ..."
@@ -143,7 +145,7 @@ run_one() {
         [ -f "$result_pkl" ] && rm "$result_pkl" && echo "  🗑 삭제: $result_pkl"
     fi
 
-    mkdir -p "$NB_OUT_DIR" "$TRACKS_DIR" "$OUTPUT_DIR"
+    mkdir -p "$NB_OUT_TMP" "$NB_OUT_DIR" "$TRACKS_DIR" "$OUTPUT_DIR"
 
     # ── Stage 1: 트랙 수집 ────────────────────────────────────────────────────
     if [ -f "$tracks_pkl" ] && _tracks_complete "$tracks_pkl" "$video"; then
@@ -152,13 +154,14 @@ run_one() {
         echo "  [Stage 1] 트랙 수집 중..."
         local colab_env=""
         [ "$COLAB" = "1" ] && colab_env="EYE_D_COLAB=1 EYE_D_DRIVE_ROOT=${DRIVE_ROOT}"
-        if env $colab_env papermill "$NB_S1" "$NB_OUT_DIR/${name}_s1.ipynb" \
+        if env $colab_env papermill "$NB_S1" "$NB_OUT_TMP/${name}_s1.ipynb" \
             -p VIDEO_PATH  "$video"      \
             -p TRACKS_DIR  "$TRACKS_DIR" \
             -p MAX_FRAMES  "$MAX_FRAMES" \
             -p GIT_COMMIT  "$GIT_COMMIT" \
             -p GIT_BRANCH  "$GIT_BRANCH" \
             --log-output 2>&1 | grep -E "(완료|오류|Error|체크포인트|재개|트랙|프레임|Executing)"; then
+            [ "$COLAB" = "1" ] && cp "$NB_OUT_TMP/${name}_s1.ipynb" "$NB_OUT_DIR/"
             echo "  ✓ Stage 1 완료 → $tracks_pkl"
         else
             echo "  ✗ Stage 1 실패"
@@ -173,7 +176,7 @@ run_one() {
         echo "  [Stage 2] ReID 추출 중... (frame_step=${FRAME_STEP})"
         local colab_env=""
         [ "$COLAB" = "1" ] && colab_env="EYE_D_COLAB=1 EYE_D_DRIVE_ROOT=${DRIVE_ROOT}"
-        if env $colab_env papermill "$NB_S2" "$NB_OUT_DIR/${name}_s2.ipynb" \
+        if env $colab_env papermill "$NB_S2" "$NB_OUT_TMP/${name}_s2.ipynb" \
             -p VIDEO_PATH        "$video"       \
             -p TRACKS_DIR        "$TRACKS_DIR"  \
             -p OUTPUT_DIR        "$OUTPUT_DIR"  \
@@ -184,6 +187,7 @@ run_one() {
             -p GIT_COMMIT        "$GIT_COMMIT"  \
             -p GIT_BRANCH        "$GIT_BRANCH"  \
             --log-output 2>&1 | grep -E "(완료|오류|Error|체크포인트|재개|트랙|임베딩|프레임|Executing)"; then
+            [ "$COLAB" = "1" ] && cp "$NB_OUT_TMP/${name}_s2.ipynb" "$NB_OUT_DIR/"
             local elapsed=$(( $(date +%s) - t0 ))
             echo "  ✓ Stage 2 완료 → $result_pkl  ($(_fmt_elapsed $elapsed))"
         else
@@ -194,7 +198,7 @@ run_one() {
 }
 
 export -f run_one _fmt_elapsed
-export NB_S1 NB_S2 NB_OUT_DIR TRACKS_DIR OUTPUT_DIR IMAGE_DIR FRAME_STEP MAX_FRAMES THRESHOLD CLEAN COLAB DRIVE_ROOT GIT_COMMIT GIT_BRANCH
+export NB_S1 NB_S2 NB_OUT_DIR NB_OUT_TMP TRACKS_DIR OUTPUT_DIR IMAGE_DIR FRAME_STEP MAX_FRAMES THRESHOLD CLEAN COLAB DRIVE_ROOT GIT_COMMIT GIT_BRANCH
 
 for video in "$@"; do run_one "$video"; done
 
@@ -205,5 +209,6 @@ echo "  파이프라인 완료  [$(date '+%Y-%m-%d %H:%M:%S')]  총 소요: $(_f
 echo "  tracks    : $TRACKS_DIR/"
 echo "  결과 pkl  : $OUTPUT_DIR/"
 [ -n "$IMAGE_DIR" ] && echo "  이미지    : $IMAGE_DIR/"
+echo "  출력 노트북: $NB_OUT_DIR/"
 echo "  다음 단계 : reid_aggregate.ipynb 실행"
 echo "═══════════════════════════════════════════════════"
