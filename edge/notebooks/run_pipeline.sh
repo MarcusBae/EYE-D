@@ -151,7 +151,8 @@ run_one() {
     if [ -f "$tracks_pkl" ] && _tracks_complete "$tracks_pkl" "$video"; then
         echo "  ⏭ Stage 1 완료 (건너뜀)"
     else
-        echo "  [Stage 1] 트랙 수집 중..."
+        local t_s1; t_s1=$(date +%s)
+        echo "  [Stage 1] 트랙 수집 중...  [$(date '+%H:%M:%S')]"
         local colab_env=""
         [ "$COLAB" = "1" ] && colab_env="EYE_D_COLAB=1 EYE_D_DRIVE_ROOT=${DRIVE_ROOT}"
         if env $colab_env papermill "$NB_S1" "$NB_OUT_TMP/${name}_s1.ipynb" \
@@ -162,9 +163,9 @@ run_one() {
             -p GIT_BRANCH  "$GIT_BRANCH" \
             --log-output 2>&1 | grep -E "(완료|오류|Error|체크포인트|재개|트랙|프레임|Executing)"; then
             [ "$COLAB" = "1" ] && cp "$NB_OUT_TMP/${name}_s1.ipynb" "$NB_OUT_DIR/"
-            echo "  ✓ Stage 1 완료 → $tracks_pkl"
+            echo "  ✓ Stage 1 완료 → $tracks_pkl  ($(_fmt_elapsed $(( $(date +%s) - t_s1 ))))"
         else
-            echo "  ✗ Stage 1 실패"
+            echo "  ✗ Stage 1 실패  ($(_fmt_elapsed $(( $(date +%s) - t_s1 ))))"
             return 1
         fi
     fi
@@ -173,7 +174,8 @@ run_one() {
     if [ -f "$result_pkl" ] && _pkl_complete "$result_pkl" "$video"; then
         echo "  ⏭ Stage 2 완료 (건너뜀)"
     else
-        echo "  [Stage 2] ReID 추출 중... (frame_step=${FRAME_STEP})"
+        local t_s2; t_s2=$(date +%s)
+        echo "  [Stage 2] ReID 추출 중... (frame_step=${FRAME_STEP})  [$(date '+%H:%M:%S')]"
         local colab_env=""
         [ "$COLAB" = "1" ] && colab_env="EYE_D_COLAB=1 EYE_D_DRIVE_ROOT=${DRIVE_ROOT}"
         if env $colab_env papermill "$NB_S2" "$NB_OUT_TMP/${name}_s2.ipynb" \
@@ -189,10 +191,9 @@ run_one() {
             --execution-timeout -1              \
             --log-output 2>&1 | grep -E "(완료|오류|Error|체크포인트|재개|트랙|임베딩|프레임|Executing)"; then
             [ "$COLAB" = "1" ] && cp "$NB_OUT_TMP/${name}_s2.ipynb" "$NB_OUT_DIR/"
-            local elapsed=$(( $(date +%s) - t0 ))
-            echo "  ✓ Stage 2 완료 → $result_pkl  ($(_fmt_elapsed $elapsed))"
+            echo "  ✓ Stage 2 완료 → $result_pkl  ($(_fmt_elapsed $(( $(date +%s) - t_s2 ))))"
         else
-            echo "  ✗ Stage 2 실패"
+            echo "  ✗ Stage 2 실패  ($(_fmt_elapsed $(( $(date +%s) - t_s2 ))))"
             return 1
         fi
     fi
