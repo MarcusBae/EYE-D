@@ -39,6 +39,7 @@ if [ "$COLAB" = "1" ] && [ -n "${IMAGE_DIR:-}" ] && [[ "$IMAGE_DIR" != /* ]]; th
 fi
 
 FRAME_STEP="${FRAME_STEP:-5}"
+YOLO_BATCH_SIZE="${YOLO_BATCH_SIZE:-4}"
 MAX_FRAMES="${MAX_FRAMES:-inf}"
 CLEAN="${CLEAN:-0}"
 
@@ -156,12 +157,13 @@ run_one() {
         local colab_env=""
         [ "$COLAB" = "1" ] && colab_env="EYE_D_COLAB=1 EYE_D_DRIVE_ROOT=${DRIVE_ROOT}"
         if env $colab_env papermill "$NB_S1" "$NB_OUT_TMP/${name}_s1.ipynb" \
-            -p VIDEO_PATH  "$video"      \
-            -p TRACKS_DIR  "$TRACKS_DIR" \
-            -p MAX_FRAMES  "$MAX_FRAMES" \
-            -p FRAME_STEP  "$FRAME_STEP" \
-            -p GIT_COMMIT  "$GIT_COMMIT" \
-            -p GIT_BRANCH  "$GIT_BRANCH" \
+            -p VIDEO_PATH       "$video"           \
+            -p TRACKS_DIR       "$TRACKS_DIR"      \
+            -p MAX_FRAMES       "$MAX_FRAMES"      \
+            -p FRAME_STEP       "$FRAME_STEP"      \
+            -p YOLO_BATCH_SIZE  "$YOLO_BATCH_SIZE" \
+            -p GIT_COMMIT       "$GIT_COMMIT"      \
+            -p GIT_BRANCH       "$GIT_BRANCH"      \
             --log-output 2>&1 | grep -E "(완료|오류|Error|체크포인트|재개|트랙|프레임|Executing)"; then
             [ "$COLAB" = "1" ] && cp "$NB_OUT_TMP/${name}_s1.ipynb" "$NB_OUT_DIR/"
             echo "  ✓ Stage 1 완료 → $tracks_pkl  ($(_fmt_elapsed $(( $(date +%s) - t_s1 ))))"
