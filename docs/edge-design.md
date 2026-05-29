@@ -649,6 +649,29 @@ Jetson의 GPU 및 NVDLA(딥러닝 가속기)를 최대한 활용하기 위해 YO
 
 ---
 
+### 8.15. Stage 2 JPG 저장 최적화: `/content/` SSD 스테이징
+
+Stage 2에서 학습용 크롭 이미지를 저장할 때, Google Drive FUSE의 느린 쓰기 병목을 제거합니다.
+
+* **배경**: `IMAGE_DIR` 지정 시 Stage 2가 bbox 크롭 이미지를 JPG로 저장합니다. 직접 Drive에 쓰면 Drive FUSE 쓰기 병목으로 수십분이 소요됩니다.
+
+* **변경**:
+  - 임시 경로: `/content/dataset_temp/{image_dir_name}/` (로컬 SSD)
+  - JPG 저장: 모든 크롭을 로컬 SSD에 먼저 쓰기 (빠름, ~0.1ms/파일)
+  - 완료 후: 배치로 `/content/dataset_temp/ → {image_dir}/` Drive로 복사
+
+* **효과**: JPG 쓰기 병목 제거
+  ```
+  이전: 8640개 크롭 × 수십ms/파일 = 수십분 (Drive FUSE 병목)
+  이후: SSD 쓰기 ~3분 + Drive 복사 ~2분 = ~5분
+  ```
+
+* **손해**: 
+  - `/content/` SSD 사용량 (임시, 완료 후 자동 삭제)
+  - 추가 복사 작업 (배치이므로 빠름)
+
+---
+
 ### 8.14. Stage 2 처리 최적화: cap.grab() — 불필요한 프레임 디코딩 생략
 
 오프라인 배치 파이프라인 Stage 2의 AVI 읽기 병목을 제거합니다.
