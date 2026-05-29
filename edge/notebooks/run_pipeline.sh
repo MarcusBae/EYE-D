@@ -159,6 +159,7 @@ run_one() {
             -p VIDEO_PATH  "$video"      \
             -p TRACKS_DIR  "$TRACKS_DIR" \
             -p MAX_FRAMES  "$MAX_FRAMES" \
+            -p FRAME_STEP  "$FRAME_STEP" \
             -p GIT_COMMIT  "$GIT_COMMIT" \
             -p GIT_BRANCH  "$GIT_BRANCH" \
             --log-output 2>&1 | grep -E "(완료|오류|Error|체크포인트|재개|트랙|프레임|Executing)"; then
