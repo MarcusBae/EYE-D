@@ -624,6 +624,31 @@ Jetson의 GPU 및 NVDLA(딥러닝 가속기)를 최대한 활용하기 위해 YO
 
 ---
 
+### 8.9. 오프라인 배치 파이프라인의 트래커 선택: ByteTrack 채택
+
+오프라인 배치 파이프라인(Stage 1 — `collect_tracks.ipynb`)의 트래커를 BotSORT 대신 **ByteTrack**으로 채택합니다.
+
+* **배경**: 초기 구현에서 BotSORT(`reid_weights='osnet_x0_25_msmt17.pt'`)를 사용했으나, 배치 처리 특성상 BotSORT의 핵심 이점이 발현되지 않음을 확인하였습니다.
+
+* **BotSORT 대비 ByteTrack의 이점 (EYE-D 배치 환경 기준)**:
+
+  | 항목 | BotSORT | ByteTrack |
+  |---|---|---|
+  | 내부 ReID (OSNet) | 매 YOLO 프레임마다 추가 실행 | 없음 |
+  | CMC (카메라 모션 보정) | 있음 (고정 카메라에서 효과 없음) | 없음 |
+  | frame_step 호환성 | tentative 트랙 즉시 삭제 문제 발생 | IoU 기반, 문제 없음 |
+  | Stage 1 처리 속도 | OSNet 이중 실행으로 느림 | 빠름 |
+
+* **결정 근거**:
+  1. **고정 카메라 환경**: EYE-D는 실내 고정 카메라를 전제하므로 CMC가 무효하며, 사람 수가 적어 ReID 기반 재매칭 이점이 미미합니다.
+  2. **OSNet 이중 실행 제거**: BotSORT가 내부적으로 OSNet을 실행하면 Stage 2에서도 동일 모델을 사용하므로 Stage 1에서의 OSNet 실행은 중복입니다.
+  3. **frame_step 호환**: ByteTrack은 IoU 기반 매칭으로 동작하여, YOLO 프레임 사이 빈 업데이트에서 tentative 트랙이 삭제되는 BotSORT 문제가 없습니다.
+  4. **벤치마크 동등성**: MOT17 기준 HOTA 차이 1.9%p로 기본 추적 성능은 동등합니다.
+
+* **ReID 역할 분리 원칙**: 트래커(Stage 1)는 track_id 연속성 유지만 담당하고, Re-ID 임베딩 추출 및 유사도 매칭은 Stage 2(OSNet)가 전담합니다.
+
+---
+
 ### 8.8. 데스크톱(Desktop)과 Jetson 환경 구동 비교 및 이관 정책
 
 에지 파이프라인을 일반 데스크톱 PC(x86_64)에서 구동할 때와 Jetson 임베디드 장비(ARM64)에서 구동할 때는 큰 틀에서의 파이프라인 아키텍처와 로직은 완전히 일치하지만, 하드웨어 특성과 아키텍처 차이에 따른 다음과 같은 설계적 차이점을 가집니다.
