@@ -1,0 +1,49 @@
+# ===== osnet_finetune sidecar .gitignore =====
+# 이 폴더는 EYE-D 레포 바깥의 사이드카이며, 학습/라벨링 산출물은 git에 올리지 않는다.
+# (산출물 ONNX만 별도로 EYE-D 레포에 PR하여 교체)
+
+# --- 가상환경 / 캐시 ---
+.venv-finetune/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# --- 입력 영상 (대용량, 외부 보관) ---
+data/raw_videos/*
+!data/raw_videos/.gitkeep
+
+# --- 1단계 산출물 ---
+data/crops/
+data/tracks_meta.csv
+
+# --- 2단계 산출물 ---
+data/proposals.json
+
+# --- 3단계 산출물 (라벨링 상태, 백업은 별도 위치에) ---
+data/persons.json
+data/persons.json.bak*
+
+# --- 4단계 산출물 ---
+data/market1501/
+data/market1501_root/
+
+# --- 5단계 산출물 ---
+log/
+runs/
+
+# --- 6단계 산출물 ---
+exports/*.onnx
+exports/*.onnx.data
+
+# --- YOLO weights (자동 다운로드되는 큰 파일) ---
+yolov8*.pt
+yolo11*.pt
+
+# --- OS / 에디터 ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
